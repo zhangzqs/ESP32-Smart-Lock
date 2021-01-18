@@ -27,13 +27,17 @@ protected:
     virtual void onKeyUp() = 0;
 
 private:
+    bool isKeyUp = false;
+    bool isKeyDown = false;
+
+    //中断服务函数
     std::function<void()> keyUp = [&]() {
-        onKeyUp();
+        isKeyUp = true;
         attachInterrupt(pin, keyDown, FALLING); //当被松手时，立马注册当按键按下时的下降沿触发
     };
 
     std::function<void()> keyDown = [&]() {
-        onKeyDown();
+        isKeyDown = true;
         attachInterrupt(pin, keyUp, RISING); //当被按下时，立马注册当按键松手时的上升沿触发
     };
 
@@ -48,5 +52,20 @@ public:
     {
         pinMode(pin, INPUT | PULLUP); //初始化pin引脚为输入引脚并且上拉它等待其被下拉以触发下降沿中断
         attachInterrupt(pin, keyDown, FALLING); //按键被按下时，是下降沿被触发
+    }
+
+    /**
+     * @brief 处理按键事件的事件循环，需要将其放入loop中
+     * 
+     */
+    void handle(){
+        if(isKeyDown){
+            onKeyDown();
+            isKeyDown = false;
+        }
+        if(isKeyUp){
+            onKeyUp();
+            isKeyUp = false;
+        }
     }
 };
