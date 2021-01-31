@@ -42,7 +42,7 @@ public:
     void unlock()
     {
         open();
-        delay(2000);
+        delay(1000);
         close();
     }
 };
