@@ -4,11 +4,12 @@
 #include <Wire.h>           //I2C总线驱动
 #include <Arduino.h>
 #include <FunctionalInterrupt.h>    //函数式中断服务函数
+#include "Handlable.hpp"
 
 /**
  * @brief 读卡器的硬件驱动
  */
-class CardReader{
+class CardReader:public Handlable{
 private:
     Adafruit_PN532 *pn532;
     uint8_t irq;
@@ -21,16 +22,15 @@ public:
 
     /**
      * @brief 读卡器的构造函数
-     * 
-     * @param sda I2C的SDA数据引脚
-     * @param scl I2C的SCL时钟引脚
+     * @param sda 数据线
+     * @param scl 时钟线
      * @param irq IRQ中断引脚
      * @param rst RST复位引脚
      */
     explicit CardReader(uint8_t sda,uint8_t scl,uint8_t irq,uint8_t rst):irq(irq){
+        //Wire.begin(21,22);
         //Wire.begin(sda,scl);    //初始化I2C总线
         pn532 = new Adafruit_PN532(irq,rst);    //使用I2C总线与PN532通信
-        Wire.begin(sda,scl);    //初始化I2C总线
         pn532->begin(); //初始化PN532
         uid = new uint8_t[6];   //初始化长度为6的UID数组(实际大多数情况只有四个)
 
@@ -119,7 +119,7 @@ private:
 
 public:
 
-    void handle(){
+    void handle() override{
         //如果读卡器被禁用了，说明之前已经刷过卡了
         //此时，如距离上次刷卡时间超过某个值时，就再次启用监听
         if(readerDisabled){

@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <FunctionalInterrupt.h>
-
+#include "Handlable.hpp"
 /**
  * @brief 按键的抽象类
  * 封装了按键中断，派生类需继承该类并覆盖其中的
@@ -9,7 +9,7 @@
  * 注意：该按键抽象类中的按键事件函数由于是通过中断触发的
  * 所以其事件
  */
-class AbstractKey {
+class AbstractKey :public Handlable{
 private:
     uint8_t pin;
 
@@ -58,7 +58,7 @@ public:
      * @brief 处理按键事件的事件循环，需要将其放入loop中
      * 
      */
-    void handle(){
+    void handle() override{
         if(isKeyDown){
             onKeyDown();
             isKeyDown = false;
