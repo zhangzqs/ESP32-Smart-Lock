@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <FunctionalInterrupt.h>
-#include "Handlable.hpp"
+#include "IHandlable.hpp"
 /**
  * @brief 按键的抽象类
  * 封装了按键中断，派生类需继承该类并覆盖其中的
@@ -9,7 +9,7 @@
  * 注意：该按键抽象类中的按键事件函数由于是通过中断触发的
  * 所以其事件
  */
-class AbstractKey :public Handlable{
+class AKey :public IHandlable{
 private:
     uint8_t pin;
 
@@ -47,7 +47,7 @@ public:
      * 上拉它,并且注册一个下降沿中断
      * @param pin 按键所对应的引脚编号
      */
-    explicit AbstractKey(uint8_t pin)
+    explicit AKey(uint8_t pin)
         : pin(pin)
     {
         pinMode(pin, INPUT | PULLUP); //初始化pin引脚为输入引脚并且上拉它等待其被下拉以触发下降沿中断

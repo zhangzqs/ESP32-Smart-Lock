@@ -1,9 +1,9 @@
 #pragma once
 #include <list>
 
-class Handlable{
+class IHandlable{
 // private:
-//     static std::list<Handlable*> handlableTasks;
+//     static std::list<IHandlable*> handlableTasks;
 
 // public:
 //     static void loop(){
@@ -13,9 +13,9 @@ class Handlable{
 //     }
 
 public:
-    explicit Handlable(){
-        //Handlable::handlableTasks.push_back(this);
-        //Serial.println("A Handlable Created!!!");
+    explicit IHandlable(){
+        //IHandlable::handlableTasks.push_back(this);
+        //Serial.println("A IHandlable Created!!!");
     }
 
     virtual void handle() = 0;

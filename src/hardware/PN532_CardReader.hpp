@@ -4,12 +4,12 @@
 #include <Wire.h>           //I2C总线驱动
 #include <Arduino.h>
 #include <FunctionalInterrupt.h>    //函数式中断服务函数
-#include "Handlable.hpp"
+#include "ICardReader.hpp"
 
 /**
  * @brief 读卡器的硬件驱动
  */
-class CardReader:public Handlable{
+class PN532_CardReader:public ICardReader{
 private:
     Adafruit_PN532 *pn532;
     uint8_t irq;
@@ -27,7 +27,7 @@ public:
      * @param irq IRQ中断引脚
      * @param rst RST复位引脚
      */
-    explicit CardReader(uint8_t sda,uint8_t scl,uint8_t irq,uint8_t rst):irq(irq){
+    explicit PN532_CardReader(uint8_t sda,uint8_t scl,uint8_t irq,uint8_t rst):irq(irq){
         //Wire.begin(21,22);
         //Wire.begin(sda,scl);    //初始化I2C总线
         pn532 = new Adafruit_PN532(irq,rst);    //使用I2C总线与PN532通信
@@ -70,10 +70,7 @@ public:
         return getFirmwareVersion() != 0;
     }
 
-protected:
-    virtual void onCardDetected(uint32_t uid){
-        Serial.printf("检测到一张卡片！%d \n",uid);
-    }
+
 
 private:
     bool detected = false;

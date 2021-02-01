@@ -1,8 +1,8 @@
 #pragma once
 
-#include "CardReader.hpp"
+#include "PN532_CardReader.hpp"
 
-class CallbackCardReader:public CardReader{
+class PN532_CallbackCardReader:public PN532_CardReader{
 
 public:
     using CardCallback = std::function<void(uint32_t)>;
@@ -19,7 +19,7 @@ protected:
     }
 
 public:
-    explicit CallbackCardReader(uint8_t sda,uint8_t scl,uint8_t irq,uint8_t rst):CardReader(sda,scl,irq,rst){
+    explicit PN532_CallbackCardReader(uint8_t sda,uint8_t scl,uint8_t irq,uint8_t rst):PN532_CardReader(sda,scl,irq,rst){
 
     }
 

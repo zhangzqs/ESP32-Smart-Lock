@@ -1,12 +1,12 @@
 #pragma once
 
 #include <HardwareSerial.h>
-#include "Handlable.hpp"
+#include "IHandlable.hpp"
 /**
  * @brief Jy61陀螺仪驱动代码
  * 
  */
-class Jy61: public Handlable{
+class Jy61: public IHandlable{
 
 public:
     explicit Jy61(HardwareSerial& serial);

@@ -1,8 +1,8 @@
 #pragma once
-#include "AbstractKey.hpp"
+#include "AKey.hpp"
 
 //支持回调的Key
-class CallbackKey : public AbstractKey
+class CallbackKey : public AKey
 {
 
 public:
@@ -27,7 +27,7 @@ protected:
     };
 
 public:
-    explicit CallbackKey(uint8_t pin) : AbstractKey(pin)
+    explicit CallbackKey(uint8_t pin) : AKey(pin)
     {
 
     }
