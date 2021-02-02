@@ -1,7 +1,6 @@
 #include <Arduino.h>
 
 #include "hardware/CallbackKey.hpp"
-//#include "hardware/IHandlable.hpp"
 #include "hardware/Lock.hpp"
 #include "hardware/RC522_CallbackCardReader.hpp"
 #include <SPI.h>
@@ -12,11 +11,10 @@ RC522_CallbackCardReader *reader;
 void Initialize(){
     key = new CallbackKey(15);
     lock = new Lock(4);
-    reader = new RC522_CallbackCardReader(21,22,18);
+    reader = new RC522_CallbackCardReader(21,22);
 }
 
 void onKeyDown(){
-    reader->startListening();
     Serial.println("Key Down");
     lock->open();
 }
@@ -45,5 +43,5 @@ void setup() {
 void loop() {
     key->handle();
     reader->handle();
-    lock->handle()
+    lock->handle();
 }

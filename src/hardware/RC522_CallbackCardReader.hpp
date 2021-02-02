@@ -19,7 +19,7 @@ protected:
     }
 
 public:
-    explicit RC522_CallbackCardReader(uint8_t sda,uint8_t irq,uint8_t rst):RC522_CardReader(sda,irq,rst){
+    explicit RC522_CallbackCardReader(uint8_t sda,uint8_t rst):RC522_CardReader(sda,rst){
 
     }
 
