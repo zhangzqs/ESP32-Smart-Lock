@@ -20,6 +20,7 @@ void onKeyDown(){
 }
 void onKeyUp(){
     Serial.println("Key Up");
+    reader->initRC522();
     lock->close();
 }
 

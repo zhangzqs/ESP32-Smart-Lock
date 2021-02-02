@@ -25,7 +25,7 @@ public:
     explicit RC522_CardReader(uint8_t sda,uint8_t rst){
         rc522 = new MFRC522(sda,rst);    //使用SPI总线与RC522通信
         resetTicker = new Ticker([this](){
-           rc522->PCD_Init();
+           initRC522();
            Serial.println("RC522_Init");
         },60000,0,MILLIS);   //构造定时器，用于定时初始化读卡器，执行无数次，每次间隔时间60s
 
@@ -36,7 +36,7 @@ public:
 
         SPI.begin();
         Serial.println("开始监听卡片！");
-        rc522->PCD_Init(); //初始化PN532
+        initRC522();
         resetTicker->start();
     }
 
@@ -47,7 +47,11 @@ public:
         delete betweenCardTicker;
         //delete rc522;
     }
-
+public:
+    void initRC522(){
+        rc522->PCD_Reset();
+        rc522->PCD_Init();
+    }
 
 public:
     /**
