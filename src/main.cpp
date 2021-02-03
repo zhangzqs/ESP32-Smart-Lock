@@ -27,14 +27,14 @@ void connectWiFi()
 }
 void receiveCallback(char* topic, uint8_t* payload, uint32_t length)
 {
-    Serial.printf("Message received [%s]", topic);
+    Serial.printf("Message received [%s]\n", topic);
     char* message = new char[length + 1];
     message[length] = '\0';
     for (int i = 0; i < length; i++) {
         message[i] = payload[i];
     }
-    Serial.printf("Message content [%s]", message);
-    Serial.printf("Message Length %d", length);
+    Serial.printf("Message content [%s]\n", message);
+    Serial.printf("Message Length %d\n", length);
     lock->unlock();
 }
 void SubMqttMsg()
