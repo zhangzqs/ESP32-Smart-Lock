@@ -3,46 +3,132 @@
 #include "hardware/CallbackKey.hpp"
 #include "hardware/Lock.hpp"
 #include "hardware/RC522_CallbackCardReader.hpp"
+#include <PubSubClient.h>
 #include <SPI.h>
-CallbackKey *key;
-Lock *lock;
-RC522_CallbackCardReader *reader;
+#include <WiFiManager.h>
 
-void Initialize(){
-    key = new CallbackKey(15);
-    lock = new Lock(4);
-    reader = new RC522_CallbackCardReader(21,22);
-}
+CallbackKey* key;
+Lock* lock;
+RC522_CallbackCardReader* reader;
+WiFiManager wm;
 
-void onKeyDown(){
-    Serial.println("Key Down");
-    lock->open();
-}
-void onKeyUp(){
-    Serial.println("Key Up");
-    reader->initRC522();
-    lock->close();
-}
+WiFiClient wifiClient; //TCP客户端
+PubSubClient mqttClient(wifiClient); //MQTT客户端
 
-void onCardSensed(uint32_t uid){
-    Serial.printf("UID: %d \n",uid);
+void connectWiFi()
+{
+    WiFi.mode(WIFI_STA);
+    bool success = wm.autoConnect("SmartLock", "88888888");
+    if (success) {
+        Serial.println("Connect successful");
+    } else {
+        Serial.println("Connect Failed");
+    }
+}
+void receiveCallback(char* topic, uint8_t* payload, uint32_t length)
+{
+    Serial.printf("Message received [%s]", topic);
+    char* message = new char[length + 1];
+    message[length] = '\0';
+    for (int i = 0; i < length; i++) {
+        message[i] = payload[i];
+    }
+    Serial.printf("Message content [%s]", message);
+    Serial.printf("Message Length %d", length);
     lock->unlock();
 }
+void SubMqttMsg()
+{
+    String topicString = "Unlock";
+    if (mqttClient.subscribe(topicString.c_str())) {
+        Serial.printf("Subscribe Topic:%s \n", topicString.c_str());
+    } else {
+        Serial.println("Subscribe fail");
+    }
+}
 
-void SetupAllCallback(){
+void PubMqttMsg(String& topic, String& message)
+{
+    if (mqttClient.publish(topic.c_str(), message.c_str())) {
+        Serial.printf("Publish topic: %s\n", topic.c_str());
+        Serial.printf("Publish message: %s\n", message.c_str());
+    } else {
+        Serial.println("Publish Failed");
+    }
+}
+
+void PubUID(uint32_t uid)
+{
+    String topicString = "UID";
+    String messageString = "";
+    messageString += uid;
+    PubMqttMsg(topicString, messageString);
+}
+
+void connectMQTTServer()
+{
+    //生成唯一客户端ID
+    String clientId = "ESP32-" + WiFi.macAddress();
+    mqttClient.setServer("test.ranye-iot.net", 1883);
+    mqttClient.setCallback(receiveCallback);
+    if (mqttClient.connect(clientId.c_str())) {
+        Serial.println("MQTT Server connected.");
+        Serial.printf("ClientId: %s\n", clientId.c_str());
+        SubMqttMsg();
+    } else {
+        Serial.printf("MQTT Server connect failed. Client state:%d\n", mqttClient.state());
+    }
+}
+
+void Initialize()
+{
+    key = new CallbackKey(15);
+    lock = new Lock(4);
+    reader = new RC522_CallbackCardReader(21, 22);
+}
+
+void onKeyDown()
+{
+    Serial.println("Key Down");
+    lock->unlock();
+}
+void onKeyUp()
+{
+    Serial.println("Key Up");
+    reader->initRC522();
+}
+
+void onCardSensed(uint32_t uid)
+{
+    Serial.printf("UID: %d \n", uid);
+    PubUID(uid);
+}
+
+void SetupAllCallback()
+{
     key->setOnKeyDownCallback(onKeyDown);
     key->setOnKeyUpCallback(onKeyUp);
 
     reader->setCardCallback(onCardSensed);
 }
-void setup() {
+void setup()
+{
     Serial.begin(115200);
     Initialize();
     SetupAllCallback();
+    connectWiFi();
+    connectMQTTServer();
 }
 
-void loop() {
+void loop()
+{
     key->handle();
     reader->handle();
     lock->handle();
+    if (mqttClient.connected()) {
+        mqttClient.loop();
+    } else {
+        connectMQTTServer();
+        delay(1000);
+    }
 }
