@@ -3,6 +3,7 @@
 #include "hardware/CallbackKey.hpp"
 #include "hardware/Lock.hpp"
 #include "hardware/RC522_CallbackCardReader.hpp"
+#include "HandlableTasks.hpp"
 #include <PubSubClient.h>
 #include <SPI.h>
 #include <WiFiManager.h>
@@ -10,6 +11,8 @@
 CallbackKey* key;
 Lock* lock;
 RC522_CallbackCardReader* reader;
+HandlableTasks hts;
+
 WiFiManager wm;
 
 WiFiClient wifiClient; //TCP客户端
@@ -85,6 +88,9 @@ void Initialize()
     key = new CallbackKey(15);
     lock = new Lock(4);
     reader = new RC522_CallbackCardReader(21, 22);
+    hts.addHandlable(key);
+    hts.addHandlable(lock);
+    hts.addHandlable(reader);
 }
 
 void onKeyDown()
@@ -95,7 +101,7 @@ void onKeyDown()
 void onKeyUp()
 {
     Serial.println("Key Up");
-    reader->initRC522();
+    //reader->initRC522();
 }
 
 void onCardSensed(uint32_t uid)
@@ -122,9 +128,7 @@ void setup()
 
 void loop()
 {
-    key->handle();
-    reader->handle();
-    lock->handle();
+    hts.handle();
     if (mqttClient.connected()) {
         mqttClient.loop();
     } else {
