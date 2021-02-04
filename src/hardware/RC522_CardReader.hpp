@@ -26,7 +26,6 @@ public:
         rc522 = new MFRC522(sda,rst);    //使用SPI总线与RC522通信
         resetTicker = new Ticker([this](){
            initRC522();
-           Serial.println("RC522_Init");
         },60000,0,MILLIS);   //构造定时器，用于定时初始化读卡器，执行无数次，每次间隔时间60s
 
         betweenCardTicker = new Ticker([this](){
@@ -49,8 +48,9 @@ public:
     }
 public:
     void initRC522(){
-        rc522->PCD_Reset();
+        //rc522->PCD_Reset();
         rc522->PCD_Init();
+        Serial.println("RC522_Init");
     }
 
 public:
