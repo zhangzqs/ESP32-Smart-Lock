@@ -33,7 +33,6 @@ public:
             betweenCardTicker->stop();
         },3000,1,MILLIS);//默认刷卡间隔为3000ms
 
-        SPI.begin();
         Serial.println("开始监听卡片！");
         initRC522();
         resetTicker->start();
@@ -49,6 +48,8 @@ public:
 public:
     void initRC522(){
         //rc522->PCD_Reset();
+        SPI.end();
+        SPI.begin();
         rc522->PCD_Init();
         Serial.println("RC522_Init");
     }
