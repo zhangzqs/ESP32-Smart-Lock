@@ -1,33 +1,24 @@
 #include <Arduino.h>
 
-#include "hardware/CallbackKey.hpp"
+#include "hardware/OneButtonHandle.hpp"
 #include "hardware/Lock.hpp"
 #include "hardware/RC522_CallbackCardReader.hpp"
 #include "HandlableTasks.hpp"
 #include <PubSubClient.h>
 #include <SPI.h>
-#include <WiFiManager.h>
-
-CallbackKey* key;
+#include <WiFi.h>
+#include "WiFiManagerHandle.hpp"
+OneButtonHandle* key;
 Lock* lock;
 RC522_CallbackCardReader* reader;
-HandlableTasks hts;
+WiFiManagerHandle* wmh;
 
-WiFiManager wm;
+HandlableTasks hts;
 
 WiFiClient wifiClient; //TCP客户端
 PubSubClient mqttClient(wifiClient); //MQTT客户端
 
-void connectWiFi()
-{
-    WiFi.mode(WIFI_STA);
-    bool success = wm.autoConnect("SmartLock", "88888888");
-    if (success) {
-        Serial.println("Connect successful");
-    } else {
-        Serial.println("Connect Failed");
-    }
-}
+
 void receiveCallback(char* topic, uint8_t* payload, uint32_t length)
 {
     Serial.printf("Message received [%s]\n", topic);
@@ -85,23 +76,32 @@ void connectMQTTServer()
 
 void Initialize()
 {
-    key = new CallbackKey(15);
+    key = new OneButtonHandle(15);
     lock = new Lock(4);
     reader = new RC522_CallbackCardReader(21, 22);
+    wmh = WiFiManagerHandle::getInstance();
     hts.addHandlable(key);
     hts.addHandlable(lock);
     hts.addHandlable(reader);
+    hts.addHandlable(wmh);
 }
 
-void onKeyDown()
+void onButtonClicked()
 {
-    Serial.println("Key Down");
+    Serial.println("Button Clicked");
     lock->unlock();
 }
-void onKeyUp()
+
+void onButtonDoubleClicked()
 {
-    Serial.println("Key Up");
-    //reader->initRC522();
+    Serial.println("Button Double Clicked");
+    reader->initRC522();
+}
+
+void onButtonLongPressed(){
+    Serial.println("Button Long Pressed");
+    Serial.println("程序即将重启");
+    ESP.restart();
 }
 
 void onCardSensed(uint32_t uid)
@@ -110,20 +110,33 @@ void onCardSensed(uint32_t uid)
     PubUID(uid);
 }
 
+void onWiFiSuccess(){
+    Serial.println("WiFi 链接成功");
+
+    connectMQTTServer();
+}
+
+
 void SetupAllCallback()
 {
-    key->setOnKeyDownCallback(onKeyDown);
-    key->setOnKeyUpCallback(onKeyUp);
+    key->attachClick(onButtonClicked);
+    key->attachDoubleClick(onButtonDoubleClicked);
+    key->attachLongPressStart(onButtonLongPressed);
 
     reader->setCardCallback(onCardSensed);
+
+    wmh->attachSuccessCallback(onWiFiSuccess);
+
 }
+
+#include "WiFiManagerHandle.hpp"
 void setup()
 {
     Serial.begin(115200);
     Initialize();
     SetupAllCallback();
-    connectWiFi();
-    connectMQTTServer();
+
+    WiFiManagerHandle::getInstance()->begin();  //开始联网
 }
 
 void loop()
@@ -132,7 +145,7 @@ void loop()
     if (mqttClient.connected()) {
         mqttClient.loop();
     } else {
-        connectMQTTServer();
-        delay(1000);
+        //connectMQTTServer();
+        //delay(1000);
     }
 }
