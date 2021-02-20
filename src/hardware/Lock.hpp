@@ -23,7 +23,7 @@ public:
         },intervalMs,1,MILLIS);
     }
 
-    virtual ~Lock()
+    ~Lock() override
     {
         servo.detach(); //释放舵机对象持有的资源
         ticker->stop(); //停止定时器任务

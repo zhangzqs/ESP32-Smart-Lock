@@ -38,7 +38,7 @@ public:
         resetTicker->start();
     }
 
-    virtual ~RC522_CardReader(){
+    ~RC522_CardReader()override{
         resetTicker->stop();
         betweenCardTicker->stop();
         delete resetTicker;
