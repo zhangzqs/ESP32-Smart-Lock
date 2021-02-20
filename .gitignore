@@ -1,2 +1,7 @@
 .pio
 .vscode
+.idea
+cmake-build-debug
+cmake-build-esp32dev
+CMakeLists.txt
+CMakeListsPrivate.txt
