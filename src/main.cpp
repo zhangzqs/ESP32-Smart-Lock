@@ -4,116 +4,106 @@
 #include "hardware/Lock.hpp"
 #include "hardware/RC522_CallbackCardReader.hpp"
 #include "HandlableTasks.hpp"
-#include <PubSubClient.h>
 #include <SPI.h>
-#include <WiFi.h>
 #include "WiFiManagerHandle.hpp"
+#include "MqttClientHandle.hpp"
+
 OneButtonHandle* key;
 Lock* lock;
 RC522_CallbackCardReader* reader;
 WiFiManagerHandle* wmh;
+LockServer* ls;
 
 HandlableTasks hts;
 
-WiFiClient wifiClient; //TCP客户端
-PubSubClient mqttClient(wifiClient); //MQTT客户端
-
-
-void receiveCallback(char* topic, uint8_t* payload, uint32_t length)
-{
-    Serial.printf("Message received [%s]\n", topic);
-    char* message = new char[length + 1];
-    message[length] = '\0';
-    for (int i = 0; i < length; i++) {
-        message[i] = payload[i];
-    }
-    Serial.printf("Message content [%s]\n", message);
-    Serial.printf("Message Length %d\n", length);
-    lock->unlock();
-}
-void SubMqttMsg()
-{
-    String topicString = "Unlock";
-    if (mqttClient.subscribe(topicString.c_str())) {
-        Serial.printf("Subscribe Topic:%s \n", topicString.c_str());
-    } else {
-        Serial.println("Subscribe fail");
-    }
-}
-
-void PubMqttMsg(String& topic, String& message)
-{
-    if (mqttClient.publish(topic.c_str(), message.c_str())) {
-        Serial.printf("Publish topic: %s\n", topic.c_str());
-        Serial.printf("Publish message: %s\n", message.c_str());
-    } else {
-        Serial.println("Publish Failed");
-    }
-}
-
-void PubUID(uint32_t uid)
-{
-    String topicString = "UID";
-    String messageString = "";
-    messageString += uid;
-    PubMqttMsg(topicString, messageString);
-}
-
-void connectMQTTServer()
-{
-    //生成唯一客户端ID
-    String clientId = "ESP32-" + WiFi.macAddress();
-    mqttClient.setServer("test.ranye-iot.net", 1883);
-    mqttClient.setCallback(receiveCallback);
-    if (mqttClient.connect(clientId.c_str())) {
-        Serial.println("MQTT Server connected.");
-        Serial.printf("ClientId: %s\n", clientId.c_str());
-        SubMqttMsg();
-    } else {
-        Serial.printf("MQTT Server connect failed. Client state:%d\n", mqttClient.state());
-    }
-}
-
+// 初始化所有
 void Initialize()
 {
     key = new OneButtonHandle(15);
     lock = new Lock(4);
     reader = new RC522_CallbackCardReader(21, 22);
     wmh = WiFiManagerHandle::getInstance();
+    ls = new LockServer();
     hts.addHandlable(key);
     hts.addHandlable(lock);
     hts.addHandlable(reader);
     hts.addHandlable(wmh);
+    hts.addHandlable(ls);
+}
+//注册mqtt路由
+void RegisterForMqttRouter(){
+    String prefix = "/smartlock/lock/";
+    prefix += ls->getClientId();
+    ls->subscribeMsg(prefix+"/servo");
+    ls->subscribeMsg(prefix+"/led");
+    ls->subscribeMsg(prefix+"/sound");
+    ls->subscribeMsg(prefix+"/esp");
 }
 
 void onButtonClicked()
 {
     Serial.println("Button Clicked");
+    ls->publishButton("click");
     lock->unlock();
 }
 
 void onButtonDoubleClicked()
 {
     Serial.println("Button Double Clicked");
-    reader->initRC522();
+    ls->publishButton("double_click");
+    lock->open();
 }
 
 void onButtonLongPressed(){
     Serial.println("Button Long Pressed");
-    Serial.println("程序即将重启");
+    ls->publishButton("long_press");
     ESP.restart();
 }
 
 void onCardSensed(uint32_t uid)
 {
-    Serial.printf("UID: %d \n", uid);
-    PubUID(uid);
+    ls->publishUID(uid);
 }
 
 void onWiFiSuccess(){
     Serial.println("WiFi 链接成功");
+    ls->begin();        //开始连接mqtt服务器
+    RegisterForMqttRouter();
+}
 
-    connectMQTTServer();
+void onReceive(const String& topic,const String& message){
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc,message);
+    JsonObject obj = doc.as<JsonObject>();
+    if(topic.endsWith("servo")){
+        int agree = obj["agree"].as<int>();
+        switch (agree)
+        {
+        case -3:
+            lock->open();
+            break;
+        case -2:
+            lock->close();
+            break;
+        case -1:
+            lock->unlock();
+            break;
+        default:
+            lock->write(agree);
+            break;
+        }
+    }else if(topic.endsWith("led")){
+        int bv = obj["brightness_value"].as<int>();
+        Serial.printf("调节亮度: %d%\n",bv);
+    }else if(topic.endsWith("sound")){
+        Serial.println("声音");
+    }else if(topic.endsWith("esp")){
+        String msg = obj["msg"].as<String>();
+        if(msg.equals("restart")){
+            Serial.println("程序即将重启");
+            ESP.restart();
+        }
+    }
 }
 
 
@@ -127,6 +117,7 @@ void SetupAllCallback()
 
     wmh->attachSuccessCallback(onWiFiSuccess);
 
+    ls->attachCallback(onReceive);
 }
 
 #include "WiFiManagerHandle.hpp"
@@ -135,17 +126,10 @@ void setup()
     Serial.begin(115200);
     Initialize();
     SetupAllCallback();
-
     WiFiManagerHandle::getInstance()->begin();  //开始联网
 }
 
 void loop()
 {
     hts.handle();
-    if (mqttClient.connected()) {
-        mqttClient.loop();
-    } else {
-        //connectMQTTServer();
-        //delay(1000);
-    }
 }
