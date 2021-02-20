@@ -27,14 +27,7 @@ public:
     }
 
 private:
-    bool connected = false;
     bool activeHandle = false; //激活事件
-
-public:
-    inline bool isConnected()
-    {
-        return connected;
-    }
 
 private:
     std::function<void()> successCallback = nullptr;
@@ -55,9 +48,9 @@ public:
         xTaskCreatePinnedToCore([](void* pvParameters) {
             WiFi.mode(WIFI_STA);
             auto wmh = WiFiManagerHandle::getInstance();
-            wmh->connected = wmh->getWiFiManager()->autoConnect("SmartLock", "88888888");
+            wmh->getWiFiManager()->autoConnect("SmartLock", "88888888");
             wmh->activeHandle = true;
-            if (!wmh->connected) {
+            if (!WiFi.isConnected()) {
                 Serial.println("Connect Failed");
             }
             vTaskDelete(NULL);
@@ -68,7 +61,7 @@ public:
     void handle() override
     {
         if (activeHandle) {
-            if (connected) {
+            if (WiFi.isConnected()) {
                 if (successCallback != nullptr) {
                     successCallback();
                 }
