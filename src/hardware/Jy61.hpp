@@ -96,6 +96,9 @@ float Jy61::getTemperature() {
 }
 
 void Jy61::getData() {
+    if(!ser->available()){
+        return;
+    }
     uint8_t byte;
     while(byte != 0x55){
         ser->readBytes(&byte,1);
