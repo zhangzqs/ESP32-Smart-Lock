@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include "IHandlable.hpp"
 #include <ArduinoJson.h>
+#include "hardware/Jy61.hpp"
 class MqttClientHandle:public IHandlable{
 protected:
     String clientId;    //客户端唯一ID信息
@@ -41,7 +42,7 @@ public:
      * @param server 服务器，默认为公有mqtt服务器
      * @param port 端口号，默认为1883
      */
-    void begin(String server = "test.ranye-iot.net",uint16_t port = 1883){
+    void begin(String server = "broker.emqx.io",uint16_t port = 1883){
         mqttClient.setServer(server.c_str(), port);
         mqttClient.setCallback([this](char* topic, uint8_t* payload, uint32_t length){
             auto cs = new char[length+1];
@@ -181,5 +182,18 @@ public:
         serializeJson(obj,messageString);
         
         publishMsg(topicString, messageString);
+    }
+
+    void publishPose(Jy61 *jy61){
+        StaticJsonDocument<200> obj;
+        obj["device_id"] = clientId;
+        obj["row"] = jy61->getRoll();
+        obj["pitch"] = jy61->getPitch();
+        obj["yaw"] =  jy61->getYaw();
+        obj["temperature"] =  jy61->getTemperature();
+        String topicString = "/smartlock/server/device_pose";
+        String messageString;
+        serializeJson(obj,messageString);
+        publishMsg(topicString,messageString);
     }
 };
