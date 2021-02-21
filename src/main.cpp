@@ -7,28 +7,34 @@
 #include <SPI.h>
 #include "WiFiManagerHandle.hpp"
 #include "MqttClientHandle.hpp"
-
+#include "hardware/Jy61.hpp"
 OneButtonHandle* key;
 Lock* lock;
 RC522_CallbackCardReader* reader;
 WiFiManagerHandle* wmh;
 LockServer* ls;
+Jy61* jy61;
 
 HandlableTasks hts;
 
 // 初始化所有
 void Initialize()
 {
+
+    Serial.begin(115200);
+    Serial2.begin(115200);
     key = new OneButtonHandle(15);
     lock = new Lock(4);
     reader = new RC522_CallbackCardReader(21, 22);
     wmh = WiFiManagerHandle::getInstance();
     ls = new LockServer();
+    jy61 = new Jy61(Serial2);
     hts.addHandlable(key);
     hts.addHandlable(lock);
     hts.addHandlable(reader);
     hts.addHandlable(wmh);
     hts.addHandlable(ls);
+    hts.addHandlable(jy61);
 }
 //注册mqtt路由
 void RegisterForMqttRouter(){
@@ -120,16 +126,25 @@ void SetupAllCallback()
     ls->attachCallback(onReceive);
 }
 
+
+//定时发布姿态信息
+Ticker posePubTicker([](){
+    ls->publishPose(jy61);
+},5000,0,MILLIS);
+
 #include "WiFiManagerHandle.hpp"
 void setup()
 {
-    Serial.begin(115200);
     Initialize();
     SetupAllCallback();
     WiFiManagerHandle::getInstance()->begin();  //开始联网
+    posePubTicker.start();
 }
+
+
 
 void loop()
 {
     hts.handle();
+    posePubTicker.update();
 }
