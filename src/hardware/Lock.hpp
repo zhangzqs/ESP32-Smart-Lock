@@ -14,7 +14,7 @@ private:
     int intervalMs = 1000; //unlock函数中舵机的开门到关门的间隔时间
 
 public:
-    explicit Lock(uint8_t pin, int startDegree = 0, int endDegree = 200) //
+    explicit Lock(uint8_t pin, int startDegree = 10, int endDegree = 0) //
         : pin(pin), startDegree(startDegree), endDegree(endDegree)      //初始化各个参数
     {
         servo.attach(pin); //分配舵机资源
