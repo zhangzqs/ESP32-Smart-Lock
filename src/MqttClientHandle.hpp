@@ -4,7 +4,11 @@
 #include "IHandlable.hpp"
 #include <ArduinoJson.h>
 #include "hardware/Jy61.hpp"
+#include <esp_wifi.h>
 class MqttClientHandle:public IHandlable{
+private:
+    int repeatCount = 0;
+    bool available = true;
 protected:
     String clientId;    //客户端唯一ID信息
     
@@ -21,7 +25,8 @@ private:
     const String willTopic = "/smartlock/server/device_status";
     String offlineMsg;  //离线消息json字符串
     String onlineMsg;   //在线消息json字符串
-
+    String serverIp;    //mqtt服务器IP
+    uint16_t port;      //端口
 public:
     explicit MqttClientHandle():mqttClient(tcpClient){
         //生成唯一客户端ID
@@ -39,10 +44,12 @@ public:
     /**
      * @brief 开始连接mqtt服务器
      * 
-     * @param server 服务器，默认为公有mqtt服务器
+     * @param server 服务器
      * @param port 端口号，默认为1883
      */
-    void begin(String server = "broker.emqx.io",uint16_t port = 1883){
+    void begin(String server,uint16_t port = 1883){
+        serverIp = server;
+        this->port = port;
         mqttClient.setServer(server.c_str(), port);
         mqttClient.setCallback([this](char* topic, uint8_t* payload, uint32_t length){
             auto cs = new char[length+1];
@@ -53,6 +60,7 @@ public:
         });
         mqttClient.setKeepAlive(15);    //MQTT心跳15秒
 
+        String mqttClientId = clientId;
         bool isConnected = mqttClient.connect(
             clientId.c_str(),                    //客户端ID
             willTopic.c_str(),     //遗嘱话题名
@@ -127,11 +135,22 @@ public:
     }
 
     void handle() override{
+        if(!available){
+            //不可用
+            return;
+        }
         if (mqttClient.connected()) {
+            repeatCount = 0;
             mqttClient.loop();
         } else {
             if(WiFi.isConnected()){ //如果WiFi已连接
-                begin();    //尝试重连
+                repeatCount++;
+                Serial.printf("正在尝试第%d次重连MQTT服务器\n",repeatCount);
+                if(repeatCount>5){
+                    //已经链接了五次均失败，放弃连接
+                    available = false;
+                }
+                begin(serverIp,1883);    //尝试重连
             }
         }
     }
