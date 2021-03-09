@@ -8,8 +8,24 @@
 #include "hardware/Lock.hpp"
 #include "hardware/OneButtonHandle.hpp"
 #include "hardware/RC522_CallbackCardReader.hpp"
+#include "hardware/CallbackKey.hpp"
+#include "WiFiManagerHandle.hpp"
 #include <SPI.h>
+#include <esp_task_wdt.h>
+
+/**
+ * @brief 调用ESP_IDF框架的任务看门狗的错误处理宏
+ * 
+ */
+#define CHECK_ERROR_CODE(returned,excepted) ({      \
+    if(returned != excepted){                       \
+        Serial.println("TWDT ERROR");               \
+        abort();                                    \
+    }                                               \
+})   
+
 OneButtonHandle* key;
+CallbackKey *myKey;
 Lock* lock;
 RC522_CallbackCardReader* reader;
 WiFiManagerHandle* wmh;
@@ -25,6 +41,7 @@ void Initialize()
     Serial.begin(115200);
     Serial2.begin(115200);
     key = new OneButtonHandle(15);
+    myKey = new CallbackKey(15);
     lock = new Lock(4);
     reader = new RC522_CallbackCardReader(5, 2);
     wmh = WiFiManagerHandle::getInstance();
@@ -32,6 +49,7 @@ void Initialize()
     jy61 = new Jy61(Serial2);
     ota = new OtaUploadHandle();
     hts.addHandlable(key);
+    //hts.addHandlable(myKey);
     hts.addHandlable(lock);
     hts.addHandlable(reader);
     hts.addHandlable(wmh);
@@ -61,12 +79,21 @@ void onButtonDoubleClicked()
 {
     Serial.println("Button Double Clicked");
     ls->publishButton("double_click");
+    lock->open();
 }
 
 void onButtonLongPressed()
 {
     Serial.println("Button Long Pressed");
     ls->publishButton("long_press");
+    ESP.restart();
+}
+
+void onButtonUp(){
+    lock->close();
+}
+
+void onButtonDown(){
     lock->open();
 }
 
@@ -78,7 +105,7 @@ void onCardSensed(uint32_t uid)
 void onWiFiSuccess()
 {
     Serial.println("WiFi 链接成功");
-    ls->begin(); //开始连接mqtt服务器
+    ls->begin("10.1.160.240",1883); //开始连接mqtt服务器
     RegisterForMqttRouter();
 }
 
@@ -123,6 +150,9 @@ void SetupAllCallback()
     key->attachDoubleClick(onButtonDoubleClicked);
     key->attachLongPressStart(onButtonLongPressed);
 
+    myKey->setOnKeyDownCallback(onButtonDown);
+    myKey->setOnKeyUpCallback(onButtonUp);
+
     reader->setCardCallback(onCardSensed);
 
     wmh->attachSuccessCallback(onWiFiSuccess);
@@ -136,17 +166,34 @@ Ticker posePubTicker([]() {
 },
     15000, 0, MILLIS);
 
-#include "WiFiManagerHandle.hpp"
+
+
+//定时重启
+Ticker restartTicker([](){
+    ESP.restart();
+},1000*60*10,0,MILLIS);   //每十分钟重启一次
+
 void setup()
 {
     Initialize();
     SetupAllCallback();
     WiFiManagerHandle::getInstance()->begin(); //开始联网
     posePubTicker.start();
+    restartTicker.start();
+
+    //初始化任务看门狗，设定定时3秒
+    CHECK_ERROR_CODE(esp_task_wdt_init(3,false),ESP_OK);
+
+    //将当前任务添加至任务看门狗
+    CHECK_ERROR_CODE(esp_task_wdt_add(nullptr),ESP_OK);
 }
 
 void loop()
 {
     hts.handle();
-    posePubTicker.update();
+    posePubTicker.update(); //定时姿态
+    restartTicker.update(); //定时重启
+
+    //重置任务看门狗
+    CHECK_ERROR_CODE(esp_task_wdt_reset(),ESP_OK);
 }
